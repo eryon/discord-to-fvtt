@@ -1,0 +1,12 @@
+.d2fvtt-message {
+  display: flex;
+  flex-direction: column;
+}
+
+.d2fvtt-message.deleted {
+  text-decoration: line-through;
+}
+
+.d2fvtt-message video {
+  width: 100%;
+}

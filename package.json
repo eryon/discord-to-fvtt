@@ -1,0 +1,21 @@
+{
+  "name": "discord-to-fvtt",
+  "scripts": {
+    "dev": "mkdir -p dist/scripts && cp -R module.json styles/ dist/ && esbuild src/index.js --bundle --keep-names --watch --sourcemap --outdir=dist/scripts"
+  },
+  "dependencies": {
+    "discord.js": "^14.15.3"
+  },
+  "devDependencies": {
+    "esbuild": "^0.23.0",
+    "prettier": "^3.3.3",
+    "prompts": "^2.4.2",
+    "vite": "^5.4.1"
+  },
+  "packageManager": "yarn@4.4.0",
+  "prettier": {
+    "printWidth": 120,
+    "singleQuote": true,
+    "trailingComma": "none"
+  }
+}
