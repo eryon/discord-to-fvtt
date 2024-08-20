@@ -1,0 +1,72 @@
+name: Publish Release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v4
+
+      - name: Enable corepack
+        run: corepack enable
+
+      - name: Setup Nodejs
+        uses: actions/setup-node@v4
+        with:
+          cache: yarn
+          node-version: 22
+
+      - name: Extract tag version number
+        id: get-version
+        run: echo "version-without-v=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Substitute links for versioned ones
+        id: sub_link_version
+        uses: devops-actions/variable-substitution@v1.2
+        with:
+          files: module.json
+        env:
+          download: https://github.com/${{ github.repository }}/releases/download/${{ github.event.release.tag_name }}/module.zip
+          manifest: https://github.com/${{ github.repository }}/releases/latest/download/module.json
+          version: ${{ steps.get-version.outputs.version-without-v }}
+
+      - name: Build package
+        run: |
+          yarn install
+          yarn build
+
+      - name: Create zip
+        run: |
+          (cd dist; zip -r9 ../module.zip ./)
+          zip -u ./module.zip module.json CHANGELOG.md LICENSE README.md
+
+      - name: Get changelog body
+        id: changelog
+        uses: release-flow/keep-a-changelog-action@v3
+        with:
+          command: query
+          version: ${{ steps.get-version.outputs.version-without-v }}
+
+      - name: Update release with files
+        id: create_version_release
+        uses: ncipollo/release-action@v1
+        with:
+          allowUpdates: true
+          artifacts: './module.json, ./module.zip'
+          body: ${{ steps.changelog.outputs.release-notes }}
+          name: ${{ steps.get-version.outputs.version-without-v }}
+          omitDraftDuringUpdate: true
+          omitPrereleaseDuringUpdate: true
+
+      - name: Publish to FoundryVTT
+        uses: cs96and/FoundryVTT-release-package@v1.0.2
+        with:
+          package-token: ${{ secrets.PACKAGE_TOKEN }}
+          manifest-url: https://github.com/${{ github.repository }}/releases/download/${{ github.event.release.tag_name }}/module.json

@@ -1,7 +1,9 @@
 {
   "name": "discord-to-fvtt",
   "scripts": {
-    "dev": "mkdir -p dist/scripts && cp -R module.json styles/ dist/ && esbuild src/index.js --bundle --keep-names --watch --sourcemap --outdir=dist/scripts"
+    "build": "yarn prebuild && esbuild src/index.js --bundle --keep-names --minify --sourcemap --outdir=dist/scripts",
+    "dev": "yarn prebuild && esbuild src/index.js --bundle --keep-names --watch --sourcemap --outdir=dist/scripts",
+    "prebuild": "mkdir -p dist/scripts && cp -R module.json styles/ dist/"
   },
   "dependencies": {
     "discord.js": "^14.15.3"
