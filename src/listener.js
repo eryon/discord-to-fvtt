@@ -81,6 +81,10 @@ function isValidGuildChannel({ channel_id, guild_id }) {
 function onClose(data) {
   log('Connection closed', data);
   close();
+
+  if (data.code === 1006) {
+    resume(false);
+  }
 }
 
 function onError(data) {
@@ -195,8 +199,10 @@ async function onMessageUpdated(data) {
   }
 }
 
-function resume() {
-  close(3000, 'resume');
+function resume(closeFirst = true) {
+  if (closeFirst) {
+    close(3000, 'resume');
+  }
 
   client = buildClient({ resume: true, url: clientState.gatewayUrl, token: clientState.token });
   client.addEventListener('open', sendResume);
