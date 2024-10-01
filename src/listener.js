@@ -1,64 +1,159 @@
 import OpCodes from './DiscordOpCodes';
 import { log, MODULE_ID } from './index';
 
-export async function init({ token }) {
-  close();
-  client = buildClient({ url: 'wss://gateway.discord.gg', token });
-}
-
-export function setAcceptedChannelIds(value) {
-  if (!!value) acceptedChannelIds = value.split(',');
-  else acceptedChannelIds = [];
-}
-
 const config = {
   encoding: 'json',
+  gatewayUrl: 'wss://gateway.discord.gg',
   version: 10
 };
-const initialState = {
-  heartbeatAcknowledged: false,
-  heartbeatInterval: -1,
-  gatewayUrl: '',
-  sessionId: '',
-  seq: null,
-  status: 'closed'
+const State = {
+  Closed: 'closed',
+  Established: 'established',
+  Open: 'open'
 };
 
-let acceptedChannelIds = [];
-let client;
-let clientState = {};
+export class Listener extends EventTarget {
+  #client;
 
-function buildClient({ url, token }) {
-  const ws = new WebSocket(`${url}/?v=${config.version}&encoding=${config.encoding}`);
-  ws.addEventListener('open', () => {
-    clientState = {
-      ...initialState,
-      gatewayUrl: ws.url,
-      token,
-      status: 'open'
-    };
-  });
-  ws.addEventListener('close', onClose);
-  ws.addEventListener('error', onError);
-  ws.addEventListener('message', onMessageReceived);
+  #initialState = {
+    heartbeatAcknowledged: false,
+    heartbeatInterval: -1,
+    gatewayUrl: '',
+    sessionId: '',
+    seq: null,
+    status: State.Closed
+  };
 
-  return ws;
-}
+  #toggleControl = {
+    active: false,
+    toggle: true,
+    icon: 'fa-brands fa-discord',
+    name: 'discord',
+    title: `${MODULE_ID}.name`,
+    onClick: this.onToolbarToggle.bind(this)
+  };
 
-function close(code = 1000, reason = '') {
-  if (clientState.hb) {
-    clearInterval(clientState.hb);
+  set acceptedChannels(value) {
+    if (!!value) this.acceptedChannelIds = value.split(',');
+    else this.acceptedChannelIds = [];
   }
 
-  client?.removeEventListener('close', onClose);
-  client?.removeEventListener('error', onError);
-  client?.removeEventListener('message', onMessageReceived);
-  client?.close(code, reason);
-}
+  set token(value) {
+    this.close();
 
-function getRenderContent(message) {
-  return `<div class="d2fvtt-message">
-      <small>${clientState.channels[message.guild_id][message.channel_id]?.name}</small>
+    if (value) {
+      this.#client = this.buildClient({ url: config.gatewayUrl, token: value });
+    }
+  }
+
+  constructor() {
+    super();
+
+    this.acceptedChannels = game.settings.get(MODULE_ID, 'discordChannelIds');
+    this.clientState = { ...this.#initialState };
+
+    Hooks.on('getSceneControlButtons', this.addToggleControlBtn.bind(this));
+  }
+
+  addToggleControlBtn(controls) {
+    if (!game.user.isGM) return;
+
+    const bar = controls.find((c) => c.name === 'token');
+    bar?.tools.push(this.#toggleControl);
+  }
+
+  buildClient({ url, token }) {
+    const ws = new WebSocket(`${url}/?v=${config.version}&encoding=${config.encoding}`);
+    ws.addEventListener('open', () => {
+      this.clientState = {
+        ...this.#initialState,
+        gatewayUrl: ws.url,
+        token,
+        status: State.Open
+      };
+    });
+    ws.addEventListener('close', this.onClose.bind(this));
+    ws.addEventListener('error', this.onError.bind(this));
+    ws.addEventListener('message', this.onReceive.bind(this));
+
+    return ws;
+  }
+
+  close(code = 1000, reason = '') {
+    if (this.clientState.hb) {
+      clearInterval(this.clientState.hb);
+    }
+
+    if (this.clientState.status === State.Closed) return;
+
+    this.#client.removeEventListener('close', this.onClose);
+    this.#client.removeEventListener('error', this.onError);
+    this.#client.removeEventListener('message', this.onReceive);
+    this.#client.close(code, reason);
+
+    this.clientState = { ...this.#initialState };
+
+    this.#toggleControl.active = false;
+    ui.controls.render();
+  }
+
+  isValidGuildChannel({ channel_id, guild_id }) {
+    if (guild_id !== game.settings.get(MODULE_ID, 'discordGuildId')) return false;
+
+    return this.acceptedChannelIds.length === 0 || !!this.acceptedChannelIds.includes(channel_id);
+  }
+
+  onClose(data) {
+    log('Connection closed', data);
+    this.close();
+
+    if (data.code === 1006) {
+      this.resume(false);
+    }
+  }
+
+  onError(data) {
+    log('Connection error', data);
+  }
+
+  onReceive({ data }) {
+    return new Promise((resolve, reject) => {
+      this._onReceive(JSON.parse(data))
+        .then(resolve)
+        .catch((err) => {
+          log('WS receive error', err);
+          reject(err);
+        });
+    });
+  }
+
+  onToolbarToggle(value) {
+    if (value) {
+      this.#client = this.buildClient({ url: config.gatewayUrl, token: game.settings.get(MODULE_ID, 'discordToken') });
+    } else {
+      this.close();
+    }
+
+    this.#toggleControl.active = value;
+    ui.controls.render();
+  }
+
+  resume(closeFirst = true) {
+    if (closeFirst) {
+      this.close(3000, 'resume');
+    }
+
+    this.#client = this.buildClient({ resume: true, url: this.clientState.gatewayUrl, token: this.clientState.token });
+    this.#client.addEventListener('open', this._sendResume.bind(this));
+  }
+
+  _destroy() {
+    Hooks.off('getSceneControlButtons', this.addToggleControlBtn);
+  }
+
+  _getRenderContent(message) {
+    return `<div class="d2fvtt-message">
+      <small>${this.clientState.channels[message.guild_id][message.channel_id]?.name}</small>
       ${message.attachments.map((a) => {
         if (a.content_type?.startsWith('video')) {
           return `<video controls muted><source src="${a.url}" type="${a.content_type}"/></video>`;
@@ -70,182 +165,155 @@ function getRenderContent(message) {
       })}
       ${message.content ? `<p>${message.content}</p>` : ''}
     </div>`;
-}
-
-function isValidGuildChannel({ channel_id, guild_id }) {
-  if (guild_id !== game.settings.get(MODULE_ID, 'discordGuildId')) return false;
-
-  return acceptedChannelIds.length === 0 || !!acceptedChannelIds.includes(channel_id);
-}
-
-function onClose(data) {
-  log('Connection closed', data);
-  close();
-
-  if (data.code === 1006) {
-    resume(false);
-  }
-}
-
-function onError(data) {
-  log('Connection error', data);
-}
-
-async function onMessageReceived({ data }) {
-  log('Received message', JSON.parse(data));
-  const { d, op, s, t } = JSON.parse(data);
-
-  switch (op) {
-    case OpCodes.Hello:
-      clientState.heartbeatInterval = d.heartbeat_interval;
-
-      setTimeout(() => {
-        sendHeartbeat();
-        clientState.hb = setInterval(sendHeartbeat, clientState.heartbeatInterval);
-      }, 250 /*clientState.heartbeatInterval * Math.random()*/);
-
-      break;
-    case OpCodes.Heartbeat:
-      sendHeartbeat();
-      break;
-    case OpCodes.HeartbeatAck:
-      clientState.heartbeatAcknowledged = true;
-
-      if (clientState.status === 'open') {
-        sendIdentify();
-      }
-
-      break;
-    case OpCodes.InvalidSession:
-      if (!d) await init({ token: clientState.token });
-      else resume();
-
-      break;
-    case OpCodes.Ready:
-      if (t === 'READY') {
-        clientState.gatewayUrl = d.resume_gateway_url ?? clientState.gatewayUrl;
-        clientState.sessionId = d.session_id ?? clientState.sessionId;
-        clientState.seq = s ?? clientState.seq;
-        clientState.status = 'ready';
-      }
-
-      break;
-    case OpCodes.Reconnect:
-      resume();
-      break;
   }
 
-  if (clientState.status !== 'ready') return;
+  _onGuildJoin(data) {
+    this.clientState.channels ??= {};
+    this.clientState.channels[data.id] = data.channels
+      .filter((c) => c.type === 0)
+      .reduce((curr, val) => ({ ...curr, [val.id]: { name: val.name, type: val.type } }), {});
+  }
 
-  if (t === 'GUILD_CREATE') {
-    onGuildCreate(d);
-  } else {
-    if (!d || !isValidGuildChannel(d)) return;
+  async _onMessageCreated(data) {
+    return ChatMessage.create({
+      content: this._getRenderContent(data),
+      flags: {
+        [MODULE_ID]: {
+          managed: true,
+          messageId: data.id
+        }
+      },
+      speaker: { alias: data.member.nick ?? data.author.username },
+      style: 1
+    });
+  }
 
-    switch (t) {
-      case 'MESSAGE_CREATE':
-        await onMessageCreated(d);
+  async _onMessageDeleted(data) {
+    const msg = game.messages.find((m) => m.getFlag(MODULE_ID, 'messageId') === data.id);
+    if (!msg) return Promise.resolve();
+
+    return !!game.settings.get(MODULE_ID, 'preserveDeletedMessages')
+      ? msg.update({
+          content: msg.content.replace('class="d2fvtt-message"', 'class="d2fvtt-message deleted"')
+        })
+      : msg.delete();
+  }
+
+  async _onMessageUpdated(data) {
+    const msg = game.messages.find((m) => m.getFlag(MODULE_ID, 'messageId') === data.id);
+    if (!msg) return Promise.resolve();
+
+    return msg.update({ content: this._getRenderContent(data) });
+  }
+
+  async _onReceive(data) {
+    log('Received message', data);
+    const { d, op, s, t } = data;
+
+    switch (op) {
+      case OpCodes.Hello:
+        this.clientState.heartbeatInterval = d.heartbeat_interval;
+
+        setTimeout(() => {
+          this._sendHeartbeat();
+          this.clientState.hb = setInterval(this._sendHeartbeat.bind(this), this.clientState.heartbeatInterval);
+        }, this.clientState.heartbeatInterval * Math.random());
+
         break;
-      case 'MESSAGE_UPDATE':
-        await onMessageUpdated(d);
+      case OpCodes.Heartbeat:
+        this._sendHeartbeat();
         break;
-      case 'MESSAGE_DELETE':
-        await onMessageDeleted(d);
+      case OpCodes.HeartbeatAck:
+        this.clientState.heartbeatAcknowledged = true;
+
+        if (this.clientState.status === 'open') {
+          this._sendIdentify();
+        }
+
+        break;
+      case OpCodes.InvalidSession:
+        if (!d) {
+          this.close();
+          this.#client = this.buildClient({ token: this.clientState.token });
+        } else {
+          this.resume();
+        }
+
+        break;
+      case OpCodes.Ready:
+        if (t === 'READY') {
+          this.clientState.gatewayUrl = d.resume_gateway_url ?? this.clientState.gatewayUrl;
+          this.clientState.sessionId = d.session_id ?? this.clientState.sessionId;
+          this.clientState.seq = s ?? this.clientState.seq;
+          this.clientState.status = 'ready';
+
+          this.#toggleControl.active = true;
+          ui.controls.render();
+        }
+
+        break;
+      case OpCodes.Reconnect:
+        this.resume();
         break;
     }
-  }
-}
 
-function onGuildCreate(data) {
-  clientState.channels ??= {};
-  clientState.channels[data.id] = data.channels
-    .filter((c) => c.type === 0)
-    .reduce((curr, val) => ({ ...curr, [val.id]: { name: val.name, type: val.type } }), {});
-}
+    if (this.clientState.status !== 'ready') return;
 
-async function onMessageCreated(data) {
-  return ChatMessage.create({
-    content: getRenderContent(data),
-    flags: {
-      [MODULE_ID]: {
-        managed: true,
-        messageId: data.id
-      }
-    },
-    speaker: { alias: data.member.nick ?? data.author.username },
-    style: 1
-  });
-}
-
-async function onMessageDeleted(data) {
-  const msg = game.messages.find((m) => m.getFlag(MODULE_ID, 'messageId') === data.id);
-
-  if (msg) {
-    if (!!game.settings.get(MODULE_ID, 'preserveDeletedMessages')) {
-      await msg.update({
-        content: msg.content.replace('class="d2fvtt-message"', 'class="d2fvtt-message deleted"')
-      });
+    if (t === 'GUILD_CREATE') {
+      this._onGuildJoin(d);
     } else {
-      await msg.delete();
+      if (!d || !this.isValidGuildChannel(d)) return;
+
+      switch (t) {
+        case 'MESSAGE_CREATE':
+          return this._onMessageCreated(d);
+        case 'MESSAGE_UPDATE':
+          return this._onMessageUpdated(d);
+        case 'MESSAGE_DELETE':
+          return this._onMessageDeleted(d);
+      }
     }
   }
-}
 
-async function onMessageUpdated(data) {
-  const msg = game.messages.find((m) => m.getFlag(MODULE_ID, 'messageId') === data.id);
-
-  if (msg) {
-    await msg.update({ content: getRenderContent(data) });
-  }
-}
-
-function resume(closeFirst = true) {
-  if (closeFirst) {
-    close(3000, 'resume');
-  }
-
-  client = buildClient({ resume: true, url: clientState.gatewayUrl, token: clientState.token });
-  client.addEventListener('open', sendResume);
-}
-
-function sendHeartbeat() {
-  if (client && client.readyState === WebSocket.OPEN) {
-    if (clientState.status === 'ready' && !clientState.heartbeatAcknowledged) {
-      close();
-      resume();
-    } else {
-      clientState.heartbeatAcknowledged = false;
-      client.send(JSON.stringify({ op: OpCodes.Heartbeat, d: clientState.seq }));
+  _sendHeartbeat() {
+    if (this.#client && this.#client.readyState === WebSocket.OPEN) {
+      if (this.clientState.status === 'ready' && !this.clientState.heartbeatAcknowledged) {
+        this.close();
+        this.resume();
+      } else {
+        this.clientState.heartbeatAcknowledged = false;
+        this.#client.send(JSON.stringify({ op: OpCodes.Heartbeat, d: this.clientState.seq }));
+      }
     }
   }
-}
 
-function sendIdentify() {
-  client.send(
-    JSON.stringify({
-      op: OpCodes.Identify,
-      d: {
-        intents: (1 << 0) | (1 << 9) | (1 << 15),
-        properties: {
-          browser: window.navigator.userAgent,
-          device: 'DiscordToFVTT'
-        },
-        token: clientState.token
-      }
-    })
-  );
-}
+  _sendIdentify() {
+    this.#client.send(
+      JSON.stringify({
+        op: OpCodes.Identify,
+        d: {
+          intents: (1 << 0) | (1 << 9) | (1 << 15),
+          properties: {
+            browser: window.navigator.userAgent,
+            device: 'DiscordToFVTT'
+          },
+          token: this.clientState.token
+        }
+      })
+    );
+  }
 
-function sendResume() {
-  client.removeEventListener('open', sendResume);
-  client.send(
-    JSON.stringify({
-      op: OpCodes.Resume,
-      d: {
-        session_id: clientState.sessionId,
-        seq: clientState.seq,
-        token: clientState.token
-      }
-    })
-  );
+  _sendResume() {
+    this.#client.removeEventListener('open', this._sendResume);
+    this.#client.send(
+      JSON.stringify({
+        op: OpCodes.Resume,
+        d: {
+          session_id: this.clientState.sessionId,
+          seq: this.clientState.seq,
+          token: this.clientState.token
+        }
+      })
+    );
+  }
 }

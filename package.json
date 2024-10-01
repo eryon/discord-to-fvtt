@@ -3,7 +3,7 @@
   "scripts": {
     "build": "yarn prebuild && esbuild src/index.js --bundle --keep-names --minify --sourcemap --outdir=dist/scripts",
     "dev": "yarn prebuild && esbuild src/index.js --bundle --keep-names --watch --sourcemap --outdir=dist/scripts",
-    "prebuild": "mkdir -p dist/scripts && cp -R module.json styles/ dist/"
+    "prebuild": "mkdir -p dist/scripts && cp -R module.json static/ styles/ dist/"
   },
   "dependencies": {
     "discord.js": "^14.15.3"

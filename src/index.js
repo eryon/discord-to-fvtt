@@ -1,9 +1,10 @@
 import * as ChatRenderer from './ChatRenderer';
-import * as listener from './listener';
+import { Listener } from './listener';
 
 export const MODULE_ID = 'discord-to-fvtt';
-
 export const log = (message, ...args) => console.log(MODULE_ID, '|', message, ...args);
+
+let listener;
 
 Hooks.once('setup', () => {
   game.settings.register(MODULE_ID, 'discordGuildId', {
@@ -21,7 +22,7 @@ Hooks.once('setup', () => {
     requiresReload: false,
     scope: 'world',
     type: String,
-    onChange: (value) => listener.setAcceptedChannelIds(value)
+    onChange: (value) => listener.acceptedChannels = value
   });
   game.settings.register(MODULE_ID, 'discordToken', {
     name: 'Discord Token',
@@ -30,7 +31,7 @@ Hooks.once('setup', () => {
     requiresReload: false,
     scope: 'world',
     type: String,
-    onChange: (value) => listener.init({ token: value })
+    onChange: (value) => listener.token = value
   });
   game.settings.register(MODULE_ID, 'preserveDeletedMessages', {
     name: 'Preserve Messages',
@@ -41,16 +42,11 @@ Hooks.once('setup', () => {
     type: Boolean
   });
 
-  listener.setAcceptedChannelIds(game.settings.get(MODULE_ID, 'discordChannelIds'));
   ChatRenderer.setup().catch((err) => console.error(MODULE_ID, { error: err }));
+  listener = new Listener();
 });
 
 Hooks.once('ready', () => {
   if (!game.users.activeGM.isSelf) return;
-
-  const token = game.settings.get(MODULE_ID, 'discordToken');
-
-  if (!!token) {
-    listener.init({ token }).catch((err) => console.error(MODULE_ID, { error: err }));
-  }
+  listener.token = game.settings.get(MODULE_ID, 'discordToken');
 });
