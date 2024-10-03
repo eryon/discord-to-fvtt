@@ -52,7 +52,9 @@ Here's how to set up a basic Discord bot for this module's purpose:
    3. Copy the provided "Install Link"
 5. On the left sidebar, click on the "Bot" menu
    1. Click on the "Reset Token" button and copy the resulting token. **KEEP THIS VALUE SECRET!**
-   2. Scroll down and **ENABLE** the "Message Content Intent" switch to allow the bot to read messages
+   2. Scroll down and **ENABLE** the special permissions:
+      1. "Presence Intent" to allow the bot to read user nicknames
+      2. "Message Content Intent" to allow the bot to read messages
 6. Open the install link from 4(iii) and authorize the bot to your server
 7. Open your FoundryVTT game and input the token from step 5(i) for this module's "Discord Token" setting
 
@@ -66,4 +68,3 @@ Here's how to set up a basic Discord bot for this module's purpose:
 - **User linking**: link game users to Discord user ids for names, portraits, and message ownership
 - **Markdown formatting**: apply markdown formatting to the message to imitate Discord's styling
 - **Whispers**: make a hook to mimic DMs as whispers
-- **Name resolution**: resolve Discord UIDs from @mentions to names

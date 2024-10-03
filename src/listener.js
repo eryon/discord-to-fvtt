@@ -150,6 +150,20 @@ export class Listener extends EventTarget {
   }
 
   _getRenderContent(message) {
+    const mentions = message.content.matchAll(/(?:<[#@](\d+)>)+/g);
+    const channels = this.clientState.channels[message.guild_id];
+    const members = this.clientState.members[message.guild_id];
+
+    for (const mention of mentions) {
+      const type = mention[0][1];
+
+      if (type === '@' && members[mention[1]]) {
+        message.content = message.content.replace(mention[0], `<u>@${members[mention[1]].display}</u>`);
+      } else if(type === '#' && channels[mention[1]]) {
+        message.content = message.content.replace(mention[0], `<u>#${channels[mention[1]].name}</u>`);
+      }
+    }
+
     return `<div class="d2fvtt-message">
       <small>${this.clientState.channels[message.guild_id][message.channel_id]?.name}</small>
       ${message.attachments.map((a) => {
@@ -170,6 +184,21 @@ export class Listener extends EventTarget {
     this.clientState.channels[data.id] = data.channels
       .filter((c) => c.type === 0)
       .reduce((curr, val) => ({ ...curr, [val.id]: { name: val.name, type: val.type } }), {});
+
+    this.clientState.members ??= {};
+    this.clientState.members[data.id] = data.members
+      .filter((u) => !u.pending)
+      .reduce(
+        (curr, val) => ({
+          ...curr,
+          [val.user.id]: {
+            avatarId: val.avatar ?? val.user.avatar,
+            display: val.nick ?? val.user.display_name ?? val.user.username,
+            username: val.user.username
+          }
+        }),
+        {}
+      );
   }
 
   async _onMessageCreated(data) {
@@ -292,7 +321,7 @@ export class Listener extends EventTarget {
       JSON.stringify({
         op: OpCodes.Identify,
         d: {
-          intents: (1 << 0) | (1 << 9) | (1 << 15),
+          intents: (1 << 0) | (1 << 8) | (1 << 9) | (1 << 15),
           properties: {
             browser: window.navigator.userAgent,
             device: 'DiscordToFVTT'
