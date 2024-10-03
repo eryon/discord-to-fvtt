@@ -65,3 +65,5 @@ Here's how to set up a basic Discord bot for this module's purpose:
 
 - **User linking**: link game users to Discord user ids for names, portraits, and message ownership
 - **Markdown formatting**: apply markdown formatting to the message to imitate Discord's styling
+- **Whispers**: make a hook to mimic DMs as whispers
+- **Name resolution**: resolve Discord UIDs from @mentions to names

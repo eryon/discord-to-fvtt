@@ -16,7 +16,7 @@ export class Listener extends EventTarget {
   #client;
 
   #initialState = {
-    heartbeatAcknowledged: false,
+    heartbeatAcknowledged: true,
     heartbeatInterval: -1,
     gatewayUrl: '',
     sessionId: '',
@@ -84,12 +84,10 @@ export class Listener extends EventTarget {
       clearInterval(this.clientState.hb);
     }
 
-    if (this.clientState.status === State.Closed) return;
-
-    this.#client.removeEventListener('close', this.onClose);
-    this.#client.removeEventListener('error', this.onError);
-    this.#client.removeEventListener('message', this.onReceive);
-    this.#client.close(code, reason);
+    this.#client?.removeEventListener('close', this.onClose);
+    this.#client?.removeEventListener('error', this.onError);
+    this.#client?.removeEventListener('message', this.onReceive);
+    this.#client?.close(code, reason);
 
     this.clientState = { ...this.#initialState };
 
@@ -219,6 +217,8 @@ export class Listener extends EventTarget {
           this.clientState.hb = setInterval(this._sendHeartbeat.bind(this), this.clientState.heartbeatInterval);
         }, this.clientState.heartbeatInterval * Math.random());
 
+        this._sendIdentify();
+
         break;
       case OpCodes.Heartbeat:
         this._sendHeartbeat();
@@ -234,7 +234,7 @@ export class Listener extends EventTarget {
       case OpCodes.InvalidSession:
         if (!d) {
           this.close();
-          this.#client = this.buildClient({ token: this.clientState.token });
+          this.#client = this.buildClient({ url: config.gatewayUrl, token: this.clientState.token });
         } else {
           this.resume();
         }
