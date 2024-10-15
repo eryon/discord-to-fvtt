@@ -1,5 +1,17 @@
 # Discord to FoundryVTT Changelog
 
+## 1.0.0 - 2024-10-15
+
+### New Features
+
+- Added toggle button to control bar, to toggle the state of the Discord relay during play
+- Added a user configuration field to allow users to take ownership of messages
+- Added the capability to resolve and format username and channel mentions
+
+### Fixed
+
+- Fixed some delay and resume issues
+
 ## 0.1.1 - 2024-08-29
 
 ### Fixed

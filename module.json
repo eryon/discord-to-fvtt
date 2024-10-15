@@ -2,7 +2,7 @@
   "id": "discord-to-fvtt",
   "title": "Discord to FoundryVTT",
   "description": "A module to stream Discord chat messages to FoundryVTT",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "authors": [
     {
       "name": "anathemort",
