@@ -149,7 +149,7 @@ export class Listener extends EventTarget {
     Hooks.off('getSceneControlButtons', this.addToggleControlBtn);
   }
 
-  _getRenderContent(message) {
+  async _getRenderContent(message) {
     const mentions = message.content.matchAll(/(?:<[#@](\d+)>)+/g);
     const channels = this.clientState.channels[message.guild_id];
     const members = this.clientState.members[message.guild_id];
@@ -164,19 +164,17 @@ export class Listener extends EventTarget {
       }
     }
 
-    return `<div class="d2fvtt-message">
-      <small>${this.clientState.channels[message.guild_id][message.channel_id]?.name}</small>
-      ${message.attachments.map((a) => {
-        if (a.content_type?.startsWith('video')) {
-          return `<video controls muted><source src="${a.url}" type="${a.content_type}"/></video>`;
-        } else if (a.content_type?.startsWith('image')) {
-          return `<img alt="${a.filename}" src="${a.url}"/>`;
-        }
-
-        return `<a href="${a.url}">${a.filename}</a>`;
-      })}
-      ${message.content ? `<p>${message.content}</p>` : ''}
-    </div>`;
+    return renderTemplate(`modules/${MODULE_ID}/static/templates/chat-card.hbs`, {
+      message,
+      attachments: message.attachments.map((a) => ({
+        filename: a.filename,
+        image: a.content_type?.startsWith('image') ?? false,
+        url: a.url,
+        video: a.content_type?.startsWith('video') ?? false
+      })),
+      channel: this.clientState.channels[message.guild_id][message.channel_id]?.name,
+      content: message.content
+    });
   }
 
   _onGuildJoin(data) {
@@ -206,7 +204,7 @@ export class Listener extends EventTarget {
 
     return ChatMessage.create({
       author: fvttUser?.id,
-      content: this._getRenderContent(data),
+      content: await this._getRenderContent(data),
       flags: {
         [MODULE_ID]: {
           managed: true,
@@ -233,7 +231,7 @@ export class Listener extends EventTarget {
     const msg = game.messages.find((m) => m.getFlag(MODULE_ID, 'messageId') === data.id);
     if (!msg) return Promise.resolve();
 
-    return msg.update({ content: this._getRenderContent(data) });
+    return msg.update({ content: await this._getRenderContent(data) });
   }
 
   async _onReceive(data) {

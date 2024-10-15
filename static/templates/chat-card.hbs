@@ -1,0 +1,14 @@
+<div class="d2fvtt-message" data-discord-id="{{message.id}}" data-discord-channel="{{channel}}">
+  {{#each attachments}}
+    {{#if this.video}}
+      <video controls muted><source src='{{this.url}}' type='{{this.content_type}}'/></video>
+    {{else if this.image}}
+      <img alt='{{this.filename}}' src='{{this.url}}'>
+    {{else}}
+      <a href='{{this.url}}'>{{this.filename}}</a>
+    {{/if}}
+  {{/each}}
+  {{#if content}}
+    <p>{{content}}</p>
+  {{/if}}
+</div>
