@@ -159,7 +159,7 @@ export class Listener extends EventTarget {
 
       if (type === '@' && members[mention[1]]) {
         message.content = message.content.replace(mention[0], `<u>@${members[mention[1]].display}</u>`);
-      } else if(type === '#' && channels[mention[1]]) {
+      } else if (type === '#' && channels[mention[1]]) {
         message.content = message.content.replace(mention[0], `<u>#${channels[mention[1]].name}</u>`);
       }
     }
@@ -202,7 +202,10 @@ export class Listener extends EventTarget {
   }
 
   async _onMessageCreated(data) {
+    const fvttUser = game.users.find((u) => u.getFlag(MODULE_ID, 'did') === data.author.id);
+
     return ChatMessage.create({
+      author: fvttUser?.id,
       content: this._getRenderContent(data),
       flags: {
         [MODULE_ID]: {
@@ -210,7 +213,7 @@ export class Listener extends EventTarget {
           messageId: data.id
         }
       },
-      speaker: { alias: data.member.nick ?? data.author.username },
+      speaker: { actor: fvttUser?.character, alias: fvttUser?.name ?? data.member.nick ?? data.author.username },
       style: 1
     });
   }

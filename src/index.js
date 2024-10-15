@@ -22,7 +22,7 @@ Hooks.once('setup', () => {
     requiresReload: false,
     scope: 'world',
     type: String,
-    onChange: (value) => listener.acceptedChannels = value
+    onChange: (value) => (listener.acceptedChannels = value)
   });
   game.settings.register(MODULE_ID, 'discordToken', {
     name: 'Discord Token',
@@ -31,7 +31,7 @@ Hooks.once('setup', () => {
     requiresReload: false,
     scope: 'world',
     type: String,
-    onChange: (value) => listener.token = value
+    onChange: (value) => (listener.token = value)
   });
   game.settings.register(MODULE_ID, 'preserveDeletedMessages', {
     name: 'Preserve Messages',
@@ -49,4 +49,20 @@ Hooks.once('setup', () => {
 Hooks.once('ready', () => {
   if (!game.users.activeGM.isSelf) return;
   listener.token = game.settings.get(MODULE_ID, 'discordToken');
+});
+
+Hooks.on('renderUserConfig', (app, html) => {
+  const did = app.document.flags[MODULE_ID]?.did ?? '';
+  const input = `
+    <fieldset>
+      <legend>${game.i18n.localize(`${MODULE_ID}.name`)}</legend>
+      <div class='form-group'>
+        <div class='form-fields'>
+          <input type='text' name='flags.${MODULE_ID}.did' value='${did}' placeholder='Discord User ID'>
+        </div>
+        <p class='hint'>${game.i18n.localize(`${MODULE_ID}.userConfigurationHint`)}</p>
+      </div>
+    </fieldset>`;
+
+  html.querySelector('section.tab[data-tab=core] > div footer').insertAdjacentHTML('beforebegin', input);
 });

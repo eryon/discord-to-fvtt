@@ -1,5 +1,6 @@
 {
   "discord-to-fvtt": {
-    "name": "Discord to FoundryVTT"
+    "name": "Discord to FoundryVTT",
+    "userConfigurationHint": "Enter your Discord User ID to take ownership of your Discord messages"
   }
 }

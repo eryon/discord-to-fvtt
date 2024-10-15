@@ -1,12 +1,24 @@
 .d2fvtt-message {
   display: flex;
   flex-direction: column;
+
+  &.deleted {
+    text-decoration: line-through;
+  }
+
+  video {
+    width: 100%;
+  }
 }
 
-.d2fvtt-message.deleted {
-  text-decoration: line-through;
-}
+.chat-message .message-header {
+  .fa-discord {
+    align-self: center;
+    flex: unset;
+    margin-right: 0.25em;
+  }
 
-.d2fvtt-message video {
-  width: 100%;
+  &.with-image > .fa-discord {
+    grid-area: user / details;
+  }
 }

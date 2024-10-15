@@ -5,7 +5,7 @@ export async function setup() {
     html
       .find('header.message-header')
       .first()
-      .prepend('<i class="fa-brands fa-discord" style="align-self: center; flex: unset; margin-right: .25em;"></i>');
+      .prepend('<i class="fa-brands fa-discord"></i>');
   });
 
   await Promise.all(game.messages.map(async (message) => {
