@@ -2,7 +2,7 @@
   "id": "discord-to-fvtt",
   "title": "Discord to FoundryVTT",
   "description": "A module to stream Discord chat messages to FoundryVTT",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "authors": [
     {
       "name": "anathemort",
@@ -29,16 +29,6 @@
   "license": "https://github.com/eryon/discord-to-fvtt/blob/main/LICENSE",
   "manifest": "https://github.com/eryon/discord-to-fvtt/releases/latest/download/module.json",
   "readme": "https://github.com/eryon/discord-to-fvtt/blob/main/README.md",
-  "relationships": {
-    "systems": {
-      "id": "pf2e",
-      "type": "system",
-      "compatibility": {
-        "minimum": "6.0.0",
-        "verified": "6.4.1"
-      }
-    }
-  },
   "styles": ["styles/d2fvtt.css"],
   "url": "https://github.com/eryon/discord-to-fvtt"
 }

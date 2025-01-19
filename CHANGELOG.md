@@ -1,5 +1,11 @@
 # Discord to FoundryVTT Changelog
 
+## 1.1.0 - 2025-01-19
+
+### New Features
+
+- Removed PF2e system relationship to allow the module on other systems (verified D&D5e and Level-Up Advanced 5e)
+
 ## 1.0.0 - 2024-10-15
 
 ### New Features

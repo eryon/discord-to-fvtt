@@ -51,6 +51,11 @@ Hooks.once('ready', () => {
   listener.token = game.settings.get(MODULE_ID, 'discordToken');
 });
 
+const userConfigSectionBySystem = {
+  'default': 'section.window-content > div footer',
+  'pf2e': 'section.tab[data-tab=core] > div footer'
+};
+
 Hooks.on('renderUserConfig', (app, html) => {
   const did = app.document.flags[MODULE_ID]?.did ?? '';
   const input = `
@@ -64,5 +69,5 @@ Hooks.on('renderUserConfig', (app, html) => {
       </div>
     </fieldset>`;
 
-  html.querySelector('section.tab[data-tab=core] > div footer').insertAdjacentHTML('beforebegin', input);
+  html.querySelector(userConfigSectionBySystem[game.system.id] ?? userConfigSectionBySystem.default).insertAdjacentHTML('beforebegin', input);
 });
